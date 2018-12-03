@@ -1,0 +1,20 @@
+@startuml
+participant Launcher3
+
+Launcher3 -> A: DoWork
+activate A
+
+A -> B: << createRequest >>
+activate B
+
+B -> C: DoWork
+activate C
+C --> B: WorkDone
+deactivate C
+
+B --> A: RequestCreated
+deactivate B
+
+A -> Launcher3: Done
+deactivate A
+@enduml

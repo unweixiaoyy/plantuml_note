@@ -1,0 +1,39 @@
+@startuml
+hide footbox
+skinparam ParticipantPadding 10
+skinparam BoxPadding 2
+
+box "Client"
+participant Launcher<<Activity>>
+participant Instrumentation
+participant IActivityManager.Stub.Proxy<<BinderProxy>>
+end box
+
+box "Server"
+participant AMS<<IActivityManager.Stub>>
+end box
+
+autonumber 1 1
+note  over Launcher :点击桌面图标
+Launcher -> Launcher : startActivitySafely
+Launcher -> Launcher : startActivity
+Launcher -> Launcher : startActivityForResult
+Launcher -> Instrumentation : execStartActivity
+Instrumentation -> IActivityManager.Stub.Proxy : startActivity
+'activate IActivityManager.Stub.Proxy
+note over IActivityManager.Stub.Proxy
+    BinderProxy.transact调用
+    Binder驱动，最后回调在
+    IActivityManager.Stub.onTransact
+end note
+IActivityManager.Stub.Proxy -> AMS : BinderProxy.transact
+note over AMS
+    AIDL方式：
+    调用父类onTransact
+    根据code执行实现类对应方法
+end note
+AMS -> AMS : onTransact
+AMS -> AMS : startActivity
+'deactivate IActivityManager.Stub.Proxy
+'IActivityManager.Stub.
+@enduml

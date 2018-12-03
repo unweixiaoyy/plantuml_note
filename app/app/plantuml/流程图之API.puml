@@ -1,0 +1,67 @@
+@startuml
+
+//隐藏脚注
+hide footbox
+
+//添加盒子
+box "Foo1"
+participant Alice1
+participant Alice2
+end box
+box "Foo2"
+participant Bob1
+participant Bob2
+end box
+Alice1 -> Bob1 : hello
+Alice1 -> Out : out
+
+//增加高度
+|||
+
+//使用skinparam命令改变颜色和字体
+skinparam backgroundColor #EEEBDC
+skinparam handwritten true
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+skinparam sequenceParticipant underline
+//内外边距
+skinparam ParticipantPadding 20
+skinparam BoxPadding 10
+
+//消息编号
+autonumber
+autonumber 'start' 用于指定编号的初始值
+autonumber 'start' 'increment' 可以同时指定编号的初始值和每次增加的值
+autonumber 10 10 "<b>[000]"  等于   010
+autonumber stop 暂停
+autonumber resume 继续
+
+//注释
+我们可以通过在消息后面添加 note left 或 note right 关键词来给消息添加注释。
+Alice->Bob : hello
+note left: this is a first note
+你也可以通过使用 end note 来添加多行注释。
+note left
+	a note
+	can also be defined
+	on several lines
+end note
+
+//关键字activate和deactivate用来表示参与者的生命活动
+User -> A: DoWork
+activate A
+A -> B: << createRequest >>
+activate B
+B -> C: DoWork
+activate C
+C --> B: WorkDone
+destroy C
+B --> A: RequestCreated
+deactivate B
+A -> User: Done
+deactivate A
+
+
+
+@enduml

@@ -1,2 +1,2 @@
 # plantuml_note
-制作plantuml流程图时序图等
+存储使用IDE的插件plantuml制作的流程图时序图

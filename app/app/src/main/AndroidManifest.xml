@@ -16,6 +16,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".aidl.AIDLServiceActivity" />
+
+        <service
+            android:name=".aidl.AIDLLoopService"
+            android:enabled="true"
+            android:process=":remote"
+            android:exported="true"></service>
     </application>
 
 </manifest>

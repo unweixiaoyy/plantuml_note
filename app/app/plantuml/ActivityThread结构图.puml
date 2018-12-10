@@ -1,0 +1,65 @@
+@startuml
+
+'ActivityThread类main入口函数
+class main<<(M,orchid)ActivityThread>>{
+    .. MainThread初始化Loop ..
+    Looper.prepareMainLooper()
+    .. 构造ActivityThread实例并调用attach方法 ..
+    ActivityThread thread = new ActivityThread()
+    thread.attach(false, startSeq)
+    .. 保存主线程Handler(mH：H) ..
+    sMainThreadHandler = thread.getHandler()
+    .. 开启消息循环 ..
+    Looper.loop()
+}
+
+class ActivityThread {
+    - {static} sCurrentActivityThread : ActivityThread
+    .. App进程用来和AMS通信，继承IApplicationThread.Stub ..
+    ~mAppThread : ApplicationThread
+    .. 处理ApplicationThread消息的Handler ..
+    ~mH : H
+    .. 代理Activity的启动和生命周期 ..
+    ~mInstrumentation : Instrumentation
+    .. 入口main函数，初始化Loop和AT，然后开启Loop消息循环 ..
+    -public static void main(String[] args)
+    .. 在main函数被调用，初始化 ..
+    -attach(boolean system, long startSeq)
+}
+
+class ApplicationThread<<IApplicationThread.Stub>>{
+    {static}ApplicationThread简称AT
+    1，IApplicationThread是AIDL接口，
+    负责和AMS跨进程通信。
+    2，AT是IApplicationThread.Stub实现类，当AMS
+    调用IApplicationThread远程代理时，AT相应方法
+    会被回调，例如四大组件的生命周期等。。。
+}
+hide ApplicationThread empty method
+
+'ActivityThread的attach函数
+class attach<<(M,orchid)ActivityThread>>{
+    .. ActivityThread单例赋值 ..
+    sCurrentActivityThread = this
+    .. 把当前进程AT的远端Binder代理BinderProxy绑定到AMS ..
+    final IActivityManager mgr = ActivityManager.getService()
+    mgr.attachApplication(mAppThread, startSeq)
+}
+
+'AMS的attachApplication函数
+class attachApplication<<(M,orchid)AMS>>{
+    .. 继续调用attachApplicationLocked() ..
+    attachApplicationLocked()
+    .. 创建Application并启动类LauncherActivity ..
+    1：thread.bindApplication()
+    2：mStackSupervisor.attachApplicationLocked(app)
+'            mStackSupervisor.realStartActivityLocked    ActivityStackSupervisor类型
+}
+
+'关系链
+main -> ActivityThread
+ActivityThread --> ApplicationThread
+ActivityThread --> attach
+attach -> attachApplication
+
+@enduml

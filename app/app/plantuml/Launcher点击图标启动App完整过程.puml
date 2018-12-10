@@ -20,11 +20,11 @@ participant ActivityStackSupervisor<<ActivityStack管理>>
 participant ActivityStack
 participant ClientLifecycleManager
 participant ClientTransaction
+participant Process
+participant ZygoteProcess
 end box
 
 box "Zygote"
-participant Process
-participant ZygoteProcess
 participant ZygoteState
 participant ZygoteServer
 participant ZygoteConnection
@@ -80,15 +80,15 @@ ActivityStackSupervisor -> AMS : startProcessLocked
 AMS -> AMS : startProcess
 AMS -> Process : start
 Process -> ZygoteProcess : openZygoteSocketIfNeeded
-ZygoteProcess -> ZygoteState : connect
+ZygoteProcess -> ZygoteProcess : connect
 
 note over ZygoteServer
     ZygoteServer服务端。AMS通过Socket发送消息，
     在runSelectLoop方法中监听AMS消息,收到消息后会调用2次，先调用
     acceptCommandPeer再调用ZygoteConnection.processOneCommand
 end note
-ZygoteState -> ZygoteServer : runSelectLoop
-ZygoteState -> ZygoteConnection : processOneCommand
+ZygoteServer -> ZygoteServer : runSelectLoop
+ZygoteServer -> ZygoteConnection : processOneCommand
 ZygoteConnection -> ZygoteConnection : handleChildProc
 ZygoteConnection -> ZygoteInit : childZygoteInit
 note over RuntimeInit

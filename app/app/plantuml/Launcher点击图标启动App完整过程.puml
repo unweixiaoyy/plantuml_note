@@ -1,0 +1,228 @@
+
+'这里主要展示AMS.startProcessLocked到创建App到Launcher启动的那个
+'关键步骤ActivityStackSupervisor.realStartActivityLocked就行了
+@startuml
+hide footbox
+skinparam ParticipantPadding 5
+skinparam BoxPadding 5
+
+box "Launcher"
+participant Launcher
+participant Instrumentation_
+participant IActivityManager.Stub.Proxy<<BinderProxy>>
+'participant ApplicationThread_Launcher<<IApplicationThread.Stub>>
+end box
+
+box "Server"
+participant AMS<<IActivityManager.Stub>>
+participant ActivityStarter<<管理Act启动>>
+participant ActivityStackSupervisor<<ActivityStack管理>>
+participant ActivityStack
+participant ClientLifecycleManager
+participant ClientTransaction
+end box
+
+box "Zygote"
+participant Process
+participant ZygoteProcess
+participant ZygoteState
+participant ZygoteServer
+participant ZygoteConnection
+participant ZygoteInit
+participant RuntimeInit
+end box
+
+box "App"
+participant ActivityThread
+participant ApplicationThread<<ActivityThread内部类>>
+participant LoadedApk
+'participant ContextImpl
+participant TransactionExecutor
+participant Instrumentation
+participant 首页Activity
+end box
+
+
+autonumber 1 1
+note  over Launcher :点击桌面图标
+Launcher -> Launcher : startActivitySafely
+Launcher -> Launcher : startActivity
+Launcher -> Instrumentation_ : startActivityForResult
+Instrumentation_ -> IActivityManager.Stub.Proxy : execStartActivity
+note over IActivityManager.Stub.Proxy
+    BinderProxy.transact调用Binder底层驱动
+    然后回调IActivityManager.Stub.onTransact
+    最后调用AMS的startActivity方法
+end note
+IActivityManager.Stub.Proxy -> AMS : startActivity
+AMS -> AMS : startActivity
+AMS -> ActivityStarter : startActivityAsUser
+ActivityStarter -> ActivityStarter : startActivityMayWait
+activate ActivityStarter
+ActivityStarter -> ActivityStarter : resolveIntent
+ActivityStarter -> ActivityStarter : startActivity
+deactivate ActivityStarter
+ActivityStarter -> ActivityStarter : startActivityUnchecked
+ActivityStarter -> ActivityStackSupervisor : resumeFocusedStackTopActivityLocked
+ActivityStackSupervisor -> ActivityStack : resumeTopActivityUncheckedLocked
+ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
+
+activate ActivityStack
+note over Instrumentation_
+    调用AT.handlePauseActivity使Launcher暂停
+end note
+ActivityStack -> Launcher : startPausingLocked
+ActivityStack -> ActivityStackSupervisor : startSpecificActivityLocked
+deactivate ActivityStack
+
+AMS -> ActivityStackSupervisor : startSpecificActivityLocked
+ActivityStackSupervisor -> AMS : startProcessLocked
+AMS -> AMS : startProcess
+AMS -> Process : start
+Process -> ZygoteProcess : openZygoteSocketIfNeeded
+ZygoteProcess -> ZygoteState : connect
+
+note over ZygoteServer
+    ZygoteServer服务端。AMS通过Socket发送消息，
+    在runSelectLoop方法中监听AMS消息,收到消息后会调用2次，先调用
+    acceptCommandPeer再调用ZygoteConnection.processOneCommand
+end note
+ZygoteState -> ZygoteServer : runSelectLoop
+ZygoteState -> ZygoteConnection : processOneCommand
+ZygoteConnection -> ZygoteConnection : handleChildProc
+ZygoteConnection -> ZygoteInit : childZygoteInit
+note over RuntimeInit
+    反射调用ActivityThread.main函数
+end note
+ZygoteInit -> RuntimeInit : findStaticMain
+RuntimeInit -> ActivityThread : main函数
+ActivityThread -> ActivityThread : attach
+ActivityThread -> AMS : attachApplication
+AMS -> AMS : attachApplicationLocked
+
+activate AMS
+autonumber 32.1
+AMS -> ApplicationThread : bindApplication
+ApplicationThread -> ActivityThread : handleBindApplication
+ActivityThread -> LoadedApk : makeApplication
+note over LoadedApk
+    ContextImpl.createAppContext为Application创建
+    Context，newApplication构造Application并调用attach
+end note
+autonumber 32.3.1
+LoadedApk -> Instrumentation : newApplication
+autonumber 32.4
+ActivityThread -> Instrumentation : callApplicationOnCreate
+
+
+autonumber 32.2
+AMS -> ActivityStackSupervisor : attachApplicationLocked
+deactivate AMS
+
+autonumber 33
+ActivityStackSupervisor -> ActivityStackSupervisor : realStartActivityLocked
+note over ActivityStackSupervisor
+    添加了一个callback和一个Request，后面会分别执行
+    clientTransaction.addCallback(LaunchActivityItem)
+    clientTransaction.setLifecycleStateRequest(ResumeActivityItem)
+end note
+ActivityStackSupervisor -> ClientLifecycleManager : scheduleTransaction
+ClientLifecycleManager -> ClientTransaction : schedule
+note over ClientTransaction
+    ClientTransactionHandler代表的是ActivityThread实例
+    这一步是跨进程调用到AT.scheduleTransaction,
+    由事务这种方式取调用AT相应到Act的生命周期，
+    Act.pause状态就是这么操作的
+end note
+ClientTransaction -> ApplicationThread : scheduleTransaction
+ApplicationThread -> ActivityThread : scheduleTransaction
+note over ActivityThread
+    AT通过内部类H，在主线程中回调execute
+    由于ClientTransaction设置了Callback和Request，所以分别执行Callback和Request，
+    最终都是执行ClientTransactionItem.execute，ClientTransactionItem理解为：
+    AMS向ActivityThread准备提交的事务，事务类型为Activity准备执行的状态。
+    LaunchActivityItem对应ActivityThread.handleLaunchActivity
+    ResumeActivityItem对应ActivityThread.handleResumeActivity
+    PauseActivityItem对应ActivityThread.handlePauseActivity
+end note
+ActivityThread -> TransactionExecutor : execute
+activate TransactionExecutor
+
+autonumber 39.1
+TransactionExecutor -> TransactionExecutor : executeCallbacks
+TransactionExecutor -> ActivityThread : handleLaunchActivity
+ActivityThread -> ActivityThread : performLaunchActivity
+
+activate ActivityThread
+ActivityThread -> Instrumentation : newActivity
+ActivityThread -> 首页Activity : attach
+ActivityThread -> Instrumentation : callActivityOnCreate
+deactivate ActivityThread
+Instrumentation -> 首页Activity : performCreate
+首页Activity -> 首页Activity : onCreate
+
+autonumber 40.1
+TransactionExecutor -> TransactionExecutor : executeLifecycleState
+deactivate TransactionExecutor
+TransactionExecutor -> ActivityThread : handleResumeActivity
+ActivityThread -> ActivityThread : performResumeActivity
+ActivityThread -> 首页Activity : performResume
+    activate 首页Activity
+    autonumber 40.51
+    首页Activity -> 首页Activity : performRestart
+        首页Activity -> Instrumentation : callActivityOnRestart
+            Instrumentation -> 首页Activity : onRestart
+        首页Activity -> 首页Activity : performStart
+            首页Activity -> Instrumentation : callActivityOnStart
+                    Instrumentation -> 首页Activity : onStart
+    autonumber 40.52
+    首页Activity -> Instrumentation : callActivityOnResume
+     deactivate 首页Activity
+        Instrumentation -> 首页Activity : onResume
+
+
+
+'5到6过程:AMS在客户端的远程代理是IActivityManager.Stub.Proxy(BinderProxy)，mRemote就是BinderProxy,
+'        调用Proxy.startActivity实际上是调用了调用BinderProxy.transact(code,data,reply,flag)，
+'        code值是AIDL文件生成的代表startActivity方法的一个值，接着调用Binder底层驱动，
+'        然后回调IActivityManager.Stub.onTransact，最后调用AMS的startActivity方法
+'
+
+'startActivityUnchecked方法重点部分理解:处理LauncherMode、LauncherTask、ActivityTask
+
+'ActivityStack.resumeTopActivityInnerLocked理解：暂停上一个Activity+启动目标Activity
+'startPausingLocked + startSpecificActivityLocked
+
+
+'startPausingLocked：原理上还是通过持有ApplicationThread在AMS的远程代理，最终调用AT的的handlePauseActivity方法，
+'AT把跟Activity有关的方法都抽象到了父类ClientTransactionHandler中，然后AT具体实现，流程变化很大，但是原理没变。
+'啰嗦的细节：ActivityStack.resumeTopActivityInnerLocked方法先调用startPausingLocked暂停上一个Act，再调用startSpecificActivityLocked启动下一个Act；
+'ActivityStack.startPausingLocked->AMS.getLifecycleManager().scheduleTransaction(prev.app.thread, prev.appToken)->
+'   ClientLifecycleManager.scheduleTransaction这一步把PauseActivityItem实例和上一个Act的AT等信息包装成了ClientTransaction->ClientTransaction.schedule->
+'   IApplicationThread.scheduleTransaction->AT.scheduleTransaction(ClientTransaction.this)ClientTransactions是Parcelable子类，把所有信息包装成它然后调用IApplicationThread.scheduleTransaction并自己当成参数传进去？->
+'   IApplicationThread.scheduleTransaction->ClientTransactionHandler.scheduleTransaction->sendMessage(ActivityThread.H.EXECUTE_TRANSACTION)->
+'   TransactionExecutor.execute->TransactionExecutor.executeLifecycleState->PauseActivityItem.execute(mTransactionHandler)->ClientTransactionHandler.handlePauseActivity->
+'   AT.handlePauseActivity->AT.performPauseActivity->AT.performPauseActivityIfNeeded->Instrumentation.callActivityOnPause(r.activity)
+'   依然涉及到跨进程通信了，ClientTransaction.schedule调用IApplicationThread.scheduleTransaction，然后AT.scheduleTransaction被跨进程调用了。
+
+'startSpecificActivityLocked：启动Activity的真正方法了，前面都是做的准备工作。
+'首先获取进程信息，如果进程存在调用realStartActivityLocked；不存在调用AMS.startProcessLocked->把String entryPoint = "android.app.ActivityThread"传入Process.start启动新进程，通过Socket向Zygote发送创建进程命令；
+'然后调用ZygoteProcess.startViaZygote->ZygoteProcess.openZygoteSocketIfNeeded->ZygoteState.connect打开Socket链接；ZygoteServer.runSelectLoop会开启循环等待AMS发送来创建进程的消息；
+'当ZygoteServer.runSelectLoop收到socket消息，调用ZygoteConnection.processOneCommand->ZygoteConnection.handleChildProc->ZygoteInit.childZygoteInit(这里肯定创建的是子进程了)->ZygoteInit.childZygoteInit->RuntimeInit.findStaticMain;
+'当执行到这里RuntimeInit.findStaticMain时，ActivityThread便被反射调用main方法了。
+
+
+
+'PackageManagerInternal抽象类，PMS内部类PackageManagerInternalImpl继承了它，代理了PMS的很多方法
+'PMS继承IPackageManager.Stub，这同样是AIDL方式跨进程通信了。
+'SystemServer中调用AMS和PMS进行初始化，所以AMS、PMS都在SystemServer进程中，AMS和PMS是同进程调用。
+
+
+'关于启动Activity中的一个细节，如果有多个Intent符合待启动的Intent会如何？
+'答案是：启动一个选择页面，调用链：ActivityStarter.startActivityMayWait->resolveIntent.resolveIntent
+'                              ->AMS.getPackageManagerInternalLocked.resolveIntent->PackageManagerInternalImpl.resolveIntent
+'                              ->PackageManagerService.resolveIntent->PMS.resolveIntentInternal->PMS.chooseBestActivity
+'                             最终进行判断，存在1个直接返回ResolveInfo，2个根据默认配置返回相应ResolveInfo，多个则返回ResolverActivity的ResolveInfo。
+
+
+@enduml

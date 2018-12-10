@@ -10,4 +10,4 @@
 .externalNativeBuild
 /gradle
 .idea
-/plantumltemp
+app/plantumltemp

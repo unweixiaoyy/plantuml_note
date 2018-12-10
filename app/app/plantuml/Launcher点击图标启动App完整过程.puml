@@ -211,6 +211,11 @@ ActivityThread -> 首页Activity : performResume
 '当ZygoteServer.runSelectLoop收到socket消息，调用ZygoteConnection.processOneCommand->ZygoteConnection.handleChildProc->ZygoteInit.childZygoteInit(这里肯定创建的是子进程了)->ZygoteInit.childZygoteInit->RuntimeInit.findStaticMain;
 '当执行到这里RuntimeInit.findStaticMain时，ActivityThread便被反射调用main方法了。
 
+'ClientTransaction：ClientTransaction内部结构为：List<ClientTransactionItem>、ActivityLifecycleItem、IApplicationThread、IBinder(mActivityToken，发起调用的Act)，
+'   schedule方法:mClient.scheduleTransaction(this)=IApplicationThread.scheduleTransaction(ClientTransaction)实际上调用的是IApplicationThread在AMS进程的本地代理。
+'   通过Binder驱动，调用IApplicationThread.Stub.onTransact，最后调用ApplicationThread.scheduleTransaction(ClientTransaction)
+'
+
 
 
 'PackageManagerInternal抽象类，PMS内部类PackageManagerInternalImpl继承了它，代理了PMS的很多方法

@@ -8,6 +8,7 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
@@ -31,6 +32,7 @@ public class AIDLServiceActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             mRemoteService = IMyAidlInterface.Stub.asInterface(service);
+            Log.i("Activity", "onServiceConnected: " + service.getClass().getName() + ",hashcode:" + service.hashCode() + ",pid:" + android.os.Process.myPid());
             Toast.makeText(AIDLServiceActivity.this, "onServiceConnected:", Toast.LENGTH_SHORT).show();
         }
 

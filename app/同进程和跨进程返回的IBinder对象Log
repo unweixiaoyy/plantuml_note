@@ -1,0 +1,7 @@
+
+同进程
+Service: onBind: com.jialong.test.aidl.IMyAidlInterfaceImpl,hashcode:133484684,pid:4238
+Activity: onServiceConnected: com.jialong.test.aidl.IMyAidlInterfaceImpl,hashcode:133484684,pid:4238
+跨进程
+Service: onBind: com.jialong.test.aidl.IMyAidlInterfaceImpl,hashcode:62475402,pid:6106
+Activity: onServiceConnected: android.os.BinderProxy,hashcode:21405437,pid:6081

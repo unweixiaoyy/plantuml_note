@@ -1,0 +1,79 @@
+@startuml
+hide footbox
+skinparam ParticipantPadding 0
+skinparam BoxPadding 0
+
+box "ServiceManager"
+participant ServiceManager
+end box
+
+participant Binder驱动
+
+box "Launcher"
+participant Launcher
+participant IActivityManager.Stub.Proxy<<AMS的BinderProxy>>
+participant ApplicationThread
+end box
+
+participant Binder驱动_
+
+box "Server"
+participant IApplicationThread.Stub.Proxy<<Launcher的BinderProxy>>
+participant AMS<<IActivityManager.Stub>>
+participant IApplicationThread.Stub.Proxy.<<App的BinderProxy>>
+end box
+
+box "Zygote"
+participant ZygoteServer
+end box
+
+participant Binder驱动.
+
+box "App"
+participant ApplicationThread.
+participant IActivityManager.Stub.Proxy.<<BinderProxy>>
+end box
+
+autonumber 1 1
+note  over Launcher :点击桌面图标
+Launcher -> ServiceManager : 获取AMS远程引用
+Launcher -> IActivityManager.Stub.Proxy : startActivity
+IActivityManager.Stub.Proxy -> AMS : startActivity
+note over ApplicationThread
+    AMS调用Launcher进入暂停状态
+end note
+AMS -> IApplicationThread.Stub.Proxy : handlePauseActivity
+IApplicationThread.Stub.Proxy -> ApplicationThread : handlePauseActivity
+note over AMS
+    AMS使用Socket通知
+    Zygote进程fork App进程
+end note
+AMS -> ZygoteServer : fork子进程
+
+note over ApplicationThread.
+    Zygote创建App进程后回到App进程
+    反射调用ActivityThread.main
+    ApplicationThread被初始化
+end note
+ApplicationThread. -> ServiceManager : 获取AMS远程引用
+ApplicationThread. -> IActivityManager.Stub.Proxy. : attachApplication
+IActivityManager.Stub.Proxy. -> AMS : attachApplication
+
+AMS -> IApplicationThread.Stub.Proxy. : bindApplication
+IApplicationThread.Stub.Proxy. -> ApplicationThread. : bindApplication
+AMS -> IApplicationThread.Stub.Proxy. : scheduleTransaction
+IApplicationThread.Stub.Proxy. -> ApplicationThread. : scheduleTransaction
+
+note over ApplicationThread.
+    依次回调onCreate、onResume、onStart
+end note
+@enduml
+
+
+
+
+
+
+
+
+

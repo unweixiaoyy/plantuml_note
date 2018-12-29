@@ -1,0 +1,31 @@
+@startuml
+hide footbox
+skinparam ParticipantPadding 2
+skinparam BoxPadding 5
+
+box "SystemServer"
+participant AMS
+participant ActivityStarter
+participant ActivityStack
+'participant ActivityStackSupervisor
+participant ActivityRecord
+participant AppWindowContainerController
+participant AppWindowToken
+participant DisplayContent
+end box
+
+autonumber 1 1
+AMS -> ActivityStarter : startActivity
+ActivityStarter -> ActivityStarter : startActivityUnchecked
+ActivityStarter -> ActivityStack : startActivityLocked
+ActivityStack -> ActivityRecord : createWindowContainer
+ActivityRecord -> AppWindowContainerController : 构造函数
+AppWindowContainerController -> AppWindowContainerController : createAppWindow
+AppWindowContainerController -> AppWindowToken : 构造函数
+note  over AppWindowToken :父类WindowToken构造函数
+AppWindowToken -> AppWindowToken :onDisplayChanged
+AppWindowToken -> DisplayContent : reParentWindowToken
+DisplayContent -> DisplayContent : addWindowToken
+note  over DisplayContent :mTokenMap.put(binder, token)
+
+@enduml

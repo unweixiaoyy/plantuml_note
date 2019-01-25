@@ -1,0 +1,35 @@
+@startuml
+hide footbox
+skinparam ParticipantPadding 5
+skinparam BoxPadding 5
+
+box "SystemServer"
+participant ActivityStack
+'participant ActivityStackSupervisor
+participant ClientLifecycleManager
+end box
+
+participant Binder驱动
+
+box "App"
+participant ApplicationThread
+participant ActivityThread
+participant TransactionExecutor
+participant ClientTransaction
+end box
+
+autonumber 1 1
+'ActivityStack -> ActivityStack : resumeTopActivityInnerLocked
+ActivityStack -> ActivityStack : startPausingLocked
+ActivityStack -> ClientLifecycleManager : scheduleTransaction
+ClientLifecycleManager -> ApplicationThread : scheduleTransaction(ClientTransaction)
+ApplicationThread -> ActivityThread : mH.sendMessage
+ActivityThread -> TransactionExecutor : execute
+TransactionExecutor -> TransactionExecutor : executeCallbacks
+TransactionExecutor -> ClientTransaction : execute
+TransactionExecutor -> TransactionExecutor : executeLifecycleState
+TransactionExecutor -> ClientTransaction : execute
+autonumber stop
+ClientTransaction -> ActivityThread : 调用Activity生命周期相关方法
+
+@enduml
